@@ -158,7 +158,7 @@ variable "ecsInstanceRoleAssumeRolePolicy" {
       "Sid": "",
       "Effect": "Allow",
       "Principal": {
-        "Service": "ec2.amazonaws.com"
+        "Service": ["ec2.amazonaws.com","ecs-tasks.amazonaws.com"]
       },
       "Action": "sts:AssumeRole"
     }

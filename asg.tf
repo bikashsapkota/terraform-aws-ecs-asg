@@ -11,7 +11,7 @@ locals {
  * Create Launch Template
  */
 resource "aws_launch_template" "lt" {
-  default_version = 1
+  # default_version = 1
   ebs_optimized   = false
   name            = "lt-${var.cluster_name}"
   image_id        = data.aws_ami.ecs_ami.id
@@ -86,23 +86,23 @@ resource "aws_autoscaling_group" "asg" {
 
   protect_from_scale_in = var.protect_from_scale_in
 
-  lifecycle {
-    create_before_destroy = true
-  }
+  # lifecycle {
+  #   create_before_destroy = false
+  # }
 }
 
 /*
  * Create autoscaling policies
  */
-resource "aws_autoscaling_policy" "up" {
-  name                   = "${var.cluster_name}-scaleUp"
-  scaling_adjustment     = var.scaling_adjustment_up
-  adjustment_type        = var.adjustment_type
-  cooldown               = var.policy_cooldown
-  policy_type            = "SimpleScaling"
-  autoscaling_group_name = aws_autoscaling_group.asg.name
-  count                  = var.alarm_actions_enabled ? 1 : 0
-}
+# resource "aws_autoscaling_policy" "up" {
+#   name                   = "${var.cluster_name}-scaleUp"
+#   scaling_adjustment     = var.scaling_adjustment_up
+#   adjustment_type        = var.adjustment_type
+#   cooldown               = var.policy_cooldown
+#   policy_type            = "SimpleScaling"
+#   autoscaling_group_name = aws_autoscaling_group.asg.name
+#   count                  = var.alarm_actions_enabled ? 1 : 0
+# }
 
 resource "aws_autoscaling_policy" "down" {
   name                   = "${var.cluster_name}-scaleDown"
@@ -117,24 +117,24 @@ resource "aws_autoscaling_policy" "down" {
 /*
  * Create CloudWatch alarms to trigger scaling of ASG
  */
-resource "aws_cloudwatch_metric_alarm" "scaleUp" {
-  alarm_name          = "${var.cluster_name}-scaleUp"
-  alarm_description   = "ECS cluster scaling metric above threshold"
-  comparison_operator = "GreaterThanOrEqualToThreshold"
-  evaluation_periods  = var.evaluation_periods
-  metric_name         = var.scaling_metric_name
-  namespace           = "AWS/ECS"
-  statistic           = "Average"
-  period              = var.alarm_period
-  threshold           = var.alarm_threshold_up
-  actions_enabled     = var.alarm_actions_enabled
-  count               = var.alarm_actions_enabled ? 1 : 0
-  alarm_actions       = [aws_autoscaling_policy.up[0].arn]
+# resource "aws_cloudwatch_metric_alarm" "scaleUp" {
+#   alarm_name          = "${var.cluster_name}-scaleUp"
+#   alarm_description   = "ECS cluster scaling metric above threshold"
+#   comparison_operator = "GreaterThanOrEqualToThreshold"
+#   evaluation_periods  = var.evaluation_periods
+#   metric_name         = var.scaling_metric_name
+#   namespace           = "AWS/ECS"
+#   statistic           = "Average"
+#   period              = var.alarm_period
+#   threshold           = var.alarm_threshold_up
+#   actions_enabled     = var.alarm_actions_enabled
+#   count               = var.alarm_actions_enabled ? 1 : 0
+#   alarm_actions       = [aws_autoscaling_policy.up[0].arn]
 
-  dimensions = {
-    ClusterName = var.cluster_name
-  }
-}
+#   dimensions = {
+#     ClusterName = var.cluster_name
+#   }
+# }
 
 resource "aws_cloudwatch_metric_alarm" "scaleDown" {
   alarm_name          = "${var.cluster_name}-scaleDown"
@@ -155,3 +155,28 @@ resource "aws_cloudwatch_metric_alarm" "scaleDown" {
   }
 }
 
+resource "aws_autoscaling_lifecycle_hook" "ecs_draining_hook" {
+  name                   = "ecs-managed-draining-termination-hook"
+  autoscaling_group_name = aws_autoscaling_group.asg.name
+  lifecycle_transition   = "autoscaling:EC2_INSTANCE_TERMINATING"
+  heartbeat_timeout      = 300  # Change this to your desired timeout (in seconds)
+  default_result         = "CONTINUE"
+}
+
+
+
+# resource "aws_autoscaling_lifecycle_hook" "ecs_terminate_hook" {
+#   name                   = "ecs-terminate-hook"
+#   autoscaling_group_name = aws_autoscaling_group.asg.name
+#   lifecycle_transition   = "autoscaling:EC2_INSTANCE_TERMINATING"
+#   heartbeat_timeout      = 300
+#   default_result         = "CONTINUE"
+# }
+
+# resource "aws_autoscaling_lifecycle_hook" "ecs_launch_hook" {
+#   name                   = "ecs-launch-hook"
+#   autoscaling_group_name = aws_autoscaling_group.asg.name
+#   lifecycle_transition   = "autoscaling:EC2_INSTANCE_LAUNCHING"
+#   heartbeat_timeout      = 300
+#   default_result         = "CONTINUE"
+# }
